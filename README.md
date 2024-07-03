@@ -1,38 +1,19 @@
-# create-svelte
+# mobile-chat
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+This is currently a rough work in progress. Polish etc todo. Bless.
 
-## Creating a project
+It's silly how much work we need to do to make even a mildly smooth chat UI in mobile safari. This demo strives to address assorted gnarly and/or buggy stuff:
 
-If you're seeing this, you've probably already done this step. Congrats!
+-   Empty space showing up below focused input fields (outside of the DOM)
+-   Page height not adjusting when the soft keyboard is presented
+-   Keeping ONLY the chat messages scrollable (and not the rest of the page)
+-   Other stuff?!
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+This is a lil SvelteKit app because that's the best way to build for the web these days. See src/routes/+page.svelte for relevant code.
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+Wish list (todo)
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+-   Factor out in to copy/paste-worthy component
+-   Auto-expand textarea
+-   Smooth blur on scroll up (like iMessage)
+-   Smooth height adjustment on focus & blur (height set timing?)
