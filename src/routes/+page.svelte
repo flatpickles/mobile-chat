@@ -1,13 +1,22 @@
 <script lang="ts">
-    import { afterUpdate, onMount } from 'svelte';
+    import { onMount } from 'svelte';
 
     let userMessage: string = '';
     let messageInput: HTMLTextAreaElement;
     let chatContainer: HTMLElement;
     let messagesContainer: HTMLElement;
     let inputContainer: HTMLElement;
+    let topGap: HTMLElement;
 
     onMount(() => {
+        const updateVh = () => {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+        updateVh();
+        window.addEventListener('resize', updateVh);
+        window.addEventListener('orientationchange', updateVh);
+
         // Prevent scrolling the page (into empty space) from touches on the input container
         const preventScroll = (event: TouchEvent) => {
             event.preventDefault();
@@ -20,6 +29,8 @@
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', adjustViewportHeight);
             window.visualViewport.addEventListener('scroll', adjustViewportHeight);
+            window.removeEventListener('resize', updateVh);
+            window.removeEventListener('orientationchange', updateVh);
         } else {
             window.addEventListener('resize', adjustViewportHeight);
             window.addEventListener('orientationchange', adjustViewportHeight);
@@ -27,6 +38,7 @@
 
         // Set viewport height on load
         adjustViewportHeight();
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         // Clean everything up
         return () => {
@@ -44,28 +56,33 @@
         };
     });
 
-    afterUpdate(() => {
-        // Scroll to the bottom of the messages container after the messages are updated
-        if (messagesContainer) {
-            messagesContainer.scrollTo({
-                top: messagesContainer.scrollHeight,
-                behavior: 'smooth'
-            });
-        }
-    });
-
     function adjustViewportHeight() {
         if (window.visualViewport) {
+            // Adding the margin top makes the full height of the content visible, since mobile safari
+            // doesn't resize the page when the keyboard presents (instead just pushes it up)
             const viewportHeight = window.visualViewport.height;
-            chatContainer.style.height = `${viewportHeight}px`;
-            window.scrollTo(0, 0);
-            messagesContainer.scrollTo({
-                top: messagesContainer.scrollHeight,
-                behavior: 'instant'
-            });
+            const contentHeight = chatContainer.scrollHeight;
+            const heightDiff = contentHeight - viewportHeight;
+            messagesContainer.style.marginTop = `${heightDiff}px`;
         } else {
+            // Fallback (might not work as well)
             chatContainer.style.height = `${window.innerHeight}px`;
         }
+
+        // Setting scrollTop doesn't work right after adjusting marginTop in mobile safari, so
+        // we need to wait for the next frame and scroll to the latest message
+        requestAnimationFrame(() => {
+            // Scroll to the latest visible message
+            const lastMessage = messagesContainer.lastElementChild;
+            if (lastMessage) {
+                const containerRect = messagesContainer.getBoundingClientRect();
+                const messageRect = lastMessage.getBoundingClientRect();
+
+                if (messageRect.bottom > containerRect.bottom) {
+                    lastMessage.scrollIntoView({ behavior: 'instant', block: 'end' });
+                }
+            }
+        });
     }
 
     // Send the current contents of the user message
@@ -74,20 +91,31 @@
             content: userMessage,
             user: true
         };
-        messages.push(message);
-        messages = messages;
+        addMessage(message);
         userMessage = '';
         messageInput.focus();
 
-        // Mock reply from the server
+        // Mock reply from a server
         setTimeout(() => {
             const message = {
                 content: 'Hello, world!',
                 user: false
             };
-            messages.push(message);
-            messages = messages;
+            addMessage(message);
         }, 500);
+    }
+
+    // Add a message to the messages array and scroll to the bottom
+    function addMessage(message: { content: string; user: boolean }) {
+        messages.push(message);
+        messages = messages;
+        requestAnimationFrame(() => {
+            const scrollTarget = messagesContainer.scrollHeight - messagesContainer.clientHeight;
+            messagesContainer.scrollTo({
+                top: scrollTarget,
+                behavior: 'smooth'
+            });
+        });
     }
 
     // Hella messages for testing
@@ -257,6 +285,7 @@
 
 <div class="chat-container" bind:this={chatContainer}>
     <div class="messages-container" bind:this={messagesContainer}>
+        <div class="top-message-gap"></div>
         {#each messages as message}
             <div class="message" class:user={message.user}>
                 <div class="message-content">{message.content}</div>
@@ -267,6 +296,7 @@
         <textarea
             class="message-input"
             rows="1"
+            placeholder="Message..."
             bind:this={messageInput}
             bind:value={userMessage}
             on:keypress={(event) => {
@@ -296,6 +326,8 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        height: 100vh; /* fallback */
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     .messages-container {
@@ -303,15 +335,20 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
         padding: 0.5rem;
+        padding-bottom: 0;
         overscroll-behavior: contain;
+    }
+
+    .top-message-gap {
+        flex-grow: 1;
     }
 
     .message {
         display: flex;
         flex-direction: row;
         align-items: flex-start;
+        padding-bottom: 0.5rem;
     }
 
     .message.user {
